@@ -50,6 +50,16 @@ class ShortUrlInMemoryRepositoryTest {
     }
 
     @Test
+    fun save_returnSuccess_ifKeyAndUrlEqualRecordExists() {
+        val repository = ShortUrlInMemoryRepository()
+        val record = ShortUrlRecordData("key", "url")
+        runBlocking { repository.save(record.key, record.url) }
+        val result = runBlocking { repository.save(record.key, record.url) }
+        assert(result is SaveSuccess)
+        assert(result == SaveSuccess(record))
+    }
+
+    @Test
     fun save_returnsFailedByDuplicateKey_ifKeyAlreadyExists() {
         val repository = ShortUrlInMemoryRepository()
         val record = ShortUrlRecordData("key", "url")

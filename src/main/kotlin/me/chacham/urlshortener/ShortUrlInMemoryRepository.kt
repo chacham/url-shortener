@@ -5,32 +5,34 @@ import org.springframework.stereotype.Repository
 @Repository
 class ShortUrlInMemoryRepository : ShortUrlRepository {
     val lock = Any()
-    val recordsWithKey = mutableMapOf<String, ShortUrlRecordData>()
-    val recordsWithUrl = mutableMapOf<String, ShortUrlRecordData>()
+    val keyToUrl = mutableMapOf<String, String>()
+    val urlToKey = mutableMapOf<String, String>()
 
     override suspend fun findByKey(key: String): ShortUrlRecord {
-        if (recordsWithKey.containsKey(key)) {
-            return recordsWithKey[key]!!
+        if (keyToUrl.containsKey(key)) {
+            return ShortUrlRecordData(key, keyToUrl[key]!!)
         }
         return ShortUrlRecordEmpty
     }
 
     override suspend fun findByUrl(url: String): ShortUrlRecord {
-        if (recordsWithUrl.containsKey(url)) {
-            return recordsWithUrl[url]!!
+        if (urlToKey.containsKey(url)) {
+            return ShortUrlRecordData(urlToKey[url]!!, url)
         }
         return ShortUrlRecordEmpty
     }
 
     override suspend fun save(key: String, url: String): SaveResult {
         synchronized(lock) {
-            if (recordsWithKey.containsKey(key) || recordsWithUrl.containsKey(url)) {
+            if (keyToUrl[key] == url) {
+                return SaveSuccess(ShortUrlRecordData(key, keyToUrl[key]!!))
+            }
+            if (keyToUrl.containsKey(key) || urlToKey.containsKey(url)) {
                 return FailedByDuplicateKeyOrUrl
             }
-            val record = ShortUrlRecordData(key, url)
-            recordsWithKey[key] = record
-            recordsWithUrl[url] = record
-            return SaveSuccess(record)
+            keyToUrl[key] = url
+            urlToKey[url] = key
+            return SaveSuccess(ShortUrlRecordData(key, url))
         }
     }
 }
