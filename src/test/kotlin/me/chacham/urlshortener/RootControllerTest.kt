@@ -34,23 +34,51 @@ class RootControllerTest {
     }
 
     @Test
+    fun put_successCreating() {
+        val key = Key("key")
+        val url = Url("http://url")
+        val request = UrlRequest(url.value)
+        coEvery { shortUrlRepository.findByUrl(url) } returns ShortUrlRecordEmpty
+        coEvery { shortUrlRepository.generateKey() } returns key
+        coEvery { shortUrlRepository.save(key, url) } returns SaveSuccess(ShortUrlRecordData(key, url))
+
+        val responseEntity = runBlocking { cut.put(request) }
+
+        assertEquals(HttpStatus.OK, responseEntity.statusCode)
+        assertEquals(ShortUrlRecordResponse(key.value, url.value), responseEntity.body)
+    }
+
+    @Test
+    fun put_successByExistingRecord() {
+        val key = Key("key")
+        val url = Url("http://url")
+        val request = UrlRequest(url.value)
+        coEvery { shortUrlRepository.findByUrl(url) } returns ShortUrlRecordData(key, url)
+
+        val responseEntity = runBlocking { cut.put(request) }
+
+        assertEquals(HttpStatus.OK, responseEntity.statusCode)
+        assertEquals(ShortUrlRecordResponse(key.value, url.value), responseEntity.body)
+    }
+
+    @Test
     fun save_success() {
         val key = Key("key")
         val url = Url("http://url")
-        val request = SaveUrlRequest(url.value)
+        val request = UrlRequest(url.value)
         coEvery { shortUrlRepository.save(key, url) } returns SaveSuccess(ShortUrlRecordData(key, url))
 
         val responseEntity = runBlocking { cut.save(key.value, request) }
 
         assertEquals(HttpStatus.OK, responseEntity.statusCode)
-        assertEquals(SaveUrlResponse(key.value, url.value), responseEntity.body)
+        assertEquals(ShortUrlRecordResponse(key.value, url.value), responseEntity.body)
     }
 
     @Test
     fun save_failByDuplicateKey() {
         val key = Key("key")
         val url = Url("http://url")
-        val request = SaveUrlRequest(url.value)
+        val request = UrlRequest(url.value)
         coEvery { shortUrlRepository.save(key, url) } returns SaveFailedByDuplicateKeyOrUrl
 
         val responseEntity = runBlocking { cut.save(key.value, request) }

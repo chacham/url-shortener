@@ -1,12 +1,17 @@
 package me.chacham.urlshortener
 
 import org.springframework.stereotype.Repository
+import java.util.*
 
 @Repository
 class ShortUrlInMemoryRepository : ShortUrlRepository {
     val lock = Any()
     val keyToUrl = mutableMapOf<Key, Url>()
     val urlToKey = mutableMapOf<Url, Key>()
+
+    override suspend fun generateKey(): Key {
+        return Key(UUID.randomUUID().toString())
+    }
 
     override suspend fun findByKey(key: Key): ShortUrlRecord {
         if (keyToUrl.containsKey(key)) {

@@ -1,6 +1,7 @@
 package me.chacham.urlshortener
 
 interface ShortUrlRepository {
+    suspend fun generateKey(): Key
     suspend fun findByKey(key: Key): ShortUrlRecord
     suspend fun findByUrl(url: Url): ShortUrlRecord
     suspend fun save(key: Key, url: Url): SaveResult

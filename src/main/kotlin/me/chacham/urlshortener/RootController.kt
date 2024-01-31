@@ -16,16 +16,49 @@ class RootController(private val shortUrlRepository: ShortUrlRepository) {
         }
     }
 
-    @PutMapping("/api/v1/{key}")
+    @PutMapping("/api/v1")
+    suspend fun put(
+        @RequestBody request: UrlRequest
+    ): ResponseEntity<ShortUrlRecordResponse> {
+        val url = Url(request.url)
+
+        val shortUrlRecord = shortUrlRepository.findByUrl(url)
+        if (shortUrlRecord is ShortUrlRecordData) {
+            return ResponseEntity.ok(ShortUrlRecordResponse(shortUrlRecord.key.value, shortUrlRecord.url.value))
+        }
+
+        val key = shortUrlRepository.generateKey()
+        when (shortUrlRepository.save(key, url)) {
+            is SaveSuccess -> {
+                return ResponseEntity.ok(ShortUrlRecordResponse(key.value, url.value))
+            }
+
+            SaveFailedByDuplicateKeyOrUrl -> {
+                val alreadyCreatedRecord = shortUrlRepository.findByUrl(url)
+                if (alreadyCreatedRecord !is ShortUrlRecordData) {
+                    // Unreachable
+                    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
+                }
+                return ResponseEntity.ok(
+                    ShortUrlRecordResponse(
+                        alreadyCreatedRecord.key.value,
+                        alreadyCreatedRecord.url.value
+                    )
+                )
+            }
+        }
+    }
+
+    @PostMapping("/api/v1/{key}")
     suspend fun save(
         @PathVariable("key") key: String,
-        @RequestBody request: SaveUrlRequest
-    ): ResponseEntity<SaveUrlResponse> {
+        @RequestBody request: UrlRequest
+    ): ResponseEntity<ShortUrlRecordResponse> {
         return when (val saveResult = shortUrlRepository.save(Key(key), Url(request.url))) {
             is SaveSuccess -> {
                 val key = saveResult.shortUrlRecordData.key
                 val url = saveResult.shortUrlRecordData.url
-                return ResponseEntity.ok(SaveUrlResponse(key.value, url.value))
+                return ResponseEntity.ok(ShortUrlRecordResponse(key.value, url.value))
             }
 
             SaveFailedByDuplicateKeyOrUrl -> ResponseEntity.status(HttpStatus.CONFLICT).build()
@@ -33,5 +66,5 @@ class RootController(private val shortUrlRepository: ShortUrlRepository) {
     }
 }
 
-data class SaveUrlRequest(val url: String)
-data class SaveUrlResponse(val key: String, val url: String)
+data class UrlRequest(val url: String)
+data class ShortUrlRecordResponse(val key: String, val url: String)

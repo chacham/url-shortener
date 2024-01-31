@@ -44,13 +44,45 @@ class RootControllerWebTest {
     }
 
     @Test
+    fun pubSuccessCreating() {
+        val key = Key("test-key")
+        val url = Url("http://test-url")
+        coEvery { shortUrlRepository.findByUrl(url) } returns ShortUrlRecordEmpty
+        coEvery { shortUrlRepository.generateKey() } returns key
+        coEvery { shortUrlRepository.save(key, url) } returns SaveSuccess(ShortUrlRecordData(key, url))
+        webTestClient.put()
+            .uri("/api/v1")
+            .bodyValue(UrlRequest(url.value))
+            .exchange()
+            .expectStatus().isOk
+            .expectBody()
+            .jsonPath("$.key").isEqualTo(key.value)
+            .jsonPath("$.url").isEqualTo(url.value)
+    }
+
+    @Test
+    fun pubSuccessByExistingRecord() {
+        val key = Key("test-key")
+        val url = Url("http://test-url")
+        coEvery { shortUrlRepository.findByUrl(url) } returns ShortUrlRecordData(key, url)
+        webTestClient.put()
+            .uri("/api/v1")
+            .bodyValue(UrlRequest(url.value))
+            .exchange()
+            .expectStatus().isOk
+            .expectBody()
+            .jsonPath("$.key").isEqualTo(key.value)
+            .jsonPath("$.url").isEqualTo(url.value)
+    }
+
+    @Test
     fun saveSuccessTest() {
         val key = Key("test-key")
         val url = Url("http://test-url")
         coEvery { shortUrlRepository.save(key, url) } returns SaveSuccess(ShortUrlRecordData(key, url))
-        webTestClient.put()
+        webTestClient.post()
             .uri("/api/v1/${key.value}")
-            .bodyValue(SaveUrlRequest(url.value))
+            .bodyValue(UrlRequest(url.value))
             .exchange()
             .expectStatus().isOk
             .expectBody()
@@ -63,9 +95,9 @@ class RootControllerWebTest {
         val key = Key("test-key")
         val url = Url("http://test-url")
         coEvery { shortUrlRepository.save(key, url) } returns SaveFailedByDuplicateKeyOrUrl
-        webTestClient.put()
+        webTestClient.post()
             .uri("/api/v1/${key.value}")
-            .bodyValue(SaveUrlRequest(url.value))
+            .bodyValue(UrlRequest(url.value))
             .exchange()
             .expectStatus().isEqualTo(HttpStatus.CONFLICT)
     }
