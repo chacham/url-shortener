@@ -13,46 +13,48 @@ class RootControllerTest {
 
     @Test
     fun accessByKey_whenRecordFound() {
-        val key = "key"
-        val url = "http://url"
+        val key = Key("key")
+        val url = Url("http://url")
         coEvery { shortUrlRepository.findByKey(key) } returns ShortUrlRecordData(key, url)
 
         val responseEntity = runBlocking { cut.accessByKey(key) }
 
-        assertEquals(responseEntity.statusCode, HttpStatus.FOUND)
-        assertEquals(responseEntity.headers["Location"]?.get(0), url)
+        assertEquals(HttpStatus.FOUND, responseEntity.statusCode)
+        assertEquals(url.value, responseEntity.headers["Location"]?.get(0))
     }
 
     @Test
     fun accessByKey_whenRecordNotFound() {
-        val key = "key"
+        val key = Key("key")
         coEvery { shortUrlRepository.findByKey(key) } returns ShortUrlRecordEmpty
 
         val responseEntity = runBlocking { cut.accessByKey(key) }
 
-        assertEquals(responseEntity.statusCode, HttpStatus.NOT_FOUND)
+        assertEquals(HttpStatus.NOT_FOUND, responseEntity.statusCode)
     }
 
     @Test
     fun save_success() {
-        val key = "key"
-        val request = SaveUrlRequest("http://url")
-        coEvery { shortUrlRepository.save(key, request.url) } returns SaveSuccess(ShortUrlRecordData(key, request.url))
+        val key = Key("key")
+        val url = Url("http://url")
+        val request = SaveUrlRequest(url.value)
+        coEvery { shortUrlRepository.save(key, url) } returns SaveSuccess(ShortUrlRecordData(key, url))
 
-        val responseEntity = runBlocking { cut.save(key, request) }
+        val responseEntity = runBlocking { cut.save(key.value, request) }
 
-        assertEquals(responseEntity.statusCode, HttpStatus.OK)
-        assertEquals(responseEntity.body, ShortUrlRecordData(key, request.url))
+        assertEquals(HttpStatus.OK, responseEntity.statusCode)
+        assertEquals(SaveUrlResponse(key.value, url.value), responseEntity.body)
     }
 
     @Test
     fun save_failByDuplicateKey() {
-        val key = "key"
-        val request = SaveUrlRequest("http://url")
-        coEvery { shortUrlRepository.save(key, request.url) } returns FailedByDuplicateKeyOrUrl
+        val key = Key("key")
+        val url = Url("http://url")
+        val request = SaveUrlRequest(url.value)
+        coEvery { shortUrlRepository.save(key, url) } returns SaveFailedByDuplicateKeyOrUrl
 
-        val responseEntity = runBlocking { cut.save(key, request) }
+        val responseEntity = runBlocking { cut.save(key.value, request) }
 
-        assertEquals(responseEntity.statusCode, HttpStatus.CONFLICT)
+        assertEquals(HttpStatus.CONFLICT, responseEntity.statusCode)
     }
 }
